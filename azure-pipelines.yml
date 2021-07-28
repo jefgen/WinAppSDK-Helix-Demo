@@ -59,15 +59,16 @@ jobs:
     displayName: 'DIAG: dir'
 
   # Run the unit test locally on the Azure VM by using VSTest (which will use the TAEF Adapter).
-  - task: VSTest@2
-    displayName: Run UnitTests
-    inputs:
-      testSelector: 'testAssemblies'
-      testAssemblyVer2: '**\*.UnitTests.dll'
-      searchFolder: '$(BuildOutputPath)'
-      runInParallel: false
-      platform: '$(BuildPlatform)'
-      configuration: '$(buildConfiguration)'
+  # Commented out for now.
+  # - task: VSTest@2
+  #   displayName: Run UnitTests
+  #   inputs:
+  #     testSelector: 'testAssemblies'
+  #     testAssemblyVer2: '**\*.UnitTests.dll'
+  #     searchFolder: '$(BuildOutputPath)'
+  #     runInParallel: false
+  #     platform: '$(BuildPlatform)'
+  #     configuration: '$(buildConfiguration)'
 
   # Copy and Publish the test binaries so we can run them in Helix later.
   - task: CopyFiles@2
