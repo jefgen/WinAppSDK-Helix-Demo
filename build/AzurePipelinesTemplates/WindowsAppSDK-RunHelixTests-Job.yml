@@ -78,11 +78,11 @@ jobs:
       nugetConfigPath: nuget.config
       restoreDirectory: packages
 
-  # Download the MRT Core test binaries
+  # Download the test binaries
   - task: DownloadBuildArtifacts@0
     displayName: 'Download: Binaries'
     inputs:
-      artifactName: 'mrtcore_test_binaries_$(buildPlatform)'
+      artifactName: 'test_binaries_$(buildPlatform)'
       downloadPath: $(testPayloadDir)
 
   # Publish the full testPayloadDir contents.
@@ -95,28 +95,12 @@ jobs:
       artifactName: HelixTestPayloadDir_$(buildPlatform)_$(buildConfiguration)
 
   # Discover the TAEF test binaries to run and generate the Helix Work Items for them.
-  # Note: There are 3 test suites for MRT Core. We currently run 2 of them in Helix.
   - task: powershell@2
-    displayName: 'Discover MRT Core UnitTests'
+    displayName: 'Discover Tests and Generate Work items'
     inputs:
       targetType: filePath
       filePath: $(winUIHelixPipelineScripts)\GenerateHelixWorkItems.ps1
-      arguments: -TestFilePattern 'mrtcore_test_binaries_$(buildPlatform)\UnitTest\*.dll' -TestBinaryDirectoryPath '$(testPayloadDir)' -OutputProjFile '$(helixWorkItemsDir)\MrtCore-UnitTests.proj' -WorkItemPrefix 'MrtCore.UnitTests.$(buildPlatform).$(buildConfiguration)' -TestNamePrefix 'MrtCore.UnitTests.$(buildPlatform).$(buildConfiguration)'
-
-  - task: powershell@2
-    displayName: 'Discover MRT Core BaseUnitTests'
-    inputs:
-      targetType: filePath
-      filePath: $(winUIHelixPipelineScripts)\GenerateHelixWorkItems.ps1
-      arguments: -TestFilePattern 'mrtcore_test_binaries_$(buildPlatform)\BaseUnitTests\*.dll' -TestBinaryDirectoryPath '$(testPayloadDir)' -OutputProjFile '$(helixWorkItemsDir)\MrtCore-BaseUnitTests.proj' -WorkItemPrefix 'MrtCore.BaseUnitTests.$(buildPlatform).$(buildConfiguration)' -TestNamePrefix 'MrtCore.BaseUnitTests.$(buildPlatform).$(buildConfiguration)'
-
-  # TODO: This test needs to be converted to TAEF to run in Helix.
-  # - task: powershell@2
-  #   displayName: 'Discover MRT Core Managed tests'
-  #   inputs:
-  #     targetType: filePath
-  #     filePath: $(winUIHelixPipelineScripts)\GenerateHelixWorkItems.ps1
-  #     arguments: -TestFilePattern 'mrtcore_test_binaries_x64\ManagedTest\*.dll' -TestBinaryDirectoryPath '$(testPayloadDir)' -OutputProjFile '$(helixWorkItemsDir)\MrtCore-ManagedTest.proj' -WorkItemPrefix 'MrtCore-ManagedTest-$(buildPlatform)-$(buildConfiguration)' -TestNamePrefix 'MrtCore.ManagedTest.$(buildPlatform).$(buildConfiguration)'
+      arguments: -TestFilePattern 'test_binaries_$(buildPlatform)\*.dll' -TestBinaryDirectoryPath '$(testPayloadDir)' -OutputProjFile '$(helixWorkItemsDir)\UnitTests.proj' -WorkItemPrefix 'UnitTests.$(buildPlatform).$(buildConfiguration)' -TestNamePrefix 'UnitTests.$(buildPlatform).$(buildConfiguration)'
 
   # Publish the generated test work items (*.proj file) as Pipeline artifact(s).
   # This is not required, but it is useful for debugging purposes to see what tests were discovered.
