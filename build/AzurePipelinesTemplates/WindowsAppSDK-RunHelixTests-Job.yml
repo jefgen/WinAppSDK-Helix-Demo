@@ -124,7 +124,8 @@ jobs:
   # By executing 'dotnet msbuild' against RunTestsInHelix.proj the test payload and the work items to execute get sent to Helix.
   - task: DotNetCoreCLI@2
     displayName: 'Run tests in Helix (open queues)'
-    condition: and(succeeded(),eq(variables['System.CollectionUri'],'https://dev.azure.com/ms/'))
+ # Currently commented out, as we don't have a HelixAccessToken.
+ #   condition: and(succeeded(),eq(variables['System.CollectionUri'],'https://dev.azure.com/ms/'))
     env:
       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
     inputs:
@@ -133,17 +134,17 @@ jobs:
       custom: msbuild
       arguments: '$(helixCommonArgs) /p:IsExternal=true /p:Creator=WindowsAppSDK /p:HelixTargetQueues=$(helixTargetQueuesOpen)'
 
-  - task: DotNetCoreCLI@2
-    displayName: 'Run tests in Helix (closed queues)'
-    condition: and(succeeded(),ne(variables['System.CollectionUri'],'https://dev.azure.com/ms/'))
-    env:
-      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
-      HelixAccessToken: $(HelixApiAccessToken)
-    inputs:
-      command: custom
-      projects: build\Helix\RunTestsInHelix.proj
-      custom: msbuild
-      arguments: '$(helixCommonArgs) /p:HelixTargetQueues=$(helixTargetQueuesClosed)'
+  # - task: DotNetCoreCLI@2
+  #   displayName: 'Run tests in Helix (closed queues)'
+  #   condition: and(succeeded(),ne(variables['System.CollectionUri'],'https://dev.azure.com/ms/'))
+  #   env:
+  #     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+  #     HelixAccessToken: $(HelixApiAccessToken)
+  #   inputs:
+  #     command: custom
+  #     projects: build\Helix\RunTestsInHelix.proj
+  #     custom: msbuild
+  #     arguments: '$(helixCommonArgs) /p:HelixTargetQueues=$(helixTargetQueuesClosed)'
 
   # This script updates the test results based on the retry logic. It updates the test results in the Pipeline to show 'sub results' in cases where a test was re-run.
   - task: powershell@2
