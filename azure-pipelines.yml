@@ -1,0 +1,69 @@
+
+jobs:
+- job: Build
+  strategy:
+    matrix:
+      x86:
+        BuildPlatform: x86
+        BuildConfiguration: Release
+      x64:
+        BuildPlatform: x64
+        BuildConfiguration: Release
+  pool:
+    vmImage: 'windows-latest'
+
+  steps:
+  - task: NuGetToolInstaller@1
+
+  - task: NuGetAuthenticate@0
+
+  # The 'NuGetCommand' name is ambiguous, so we use the task GUID instead.
+  - task: 333b11bd-d341-40d9-afcf-b32d5ce6f23b@2
+    displayName: 'NuGet restore src\UnitTests\UnitTests.sln'
+    inputs:
+      command: 'restore'
+      restoreSolution: 'src\UnitTests\UnitTests.sln'
+      feedsToUse: config
+      nugetConfigPath: 'nuget.config'
+#      restoreDirectory: packages
+
+  - powershell: |
+      Write-Host ""
+      Write-Host "$(BUILD.BINARIESDIRECTORY)"
+      Tree /F /A $(BUILD.BINARIESDIRECTORY)
+      Write-Host ""
+      Write-Host "$(BUILD.SourcesDirectory)"
+      Tree /F /A $(BUILD.SourcesDirectory)
+    displayName: 'DIAG: dir'
+
+  - task: MSBuild@1
+    displayName: Build solution
+    inputs:
+      solution: 'src\UnitTests\UnitTests.sln'
+      platform: $(BuildPlatform)
+      configuration: $(BuildConfiguration)
+      clean: true
+      maximumCpuCount: true
+      createLogFile: true
+
+  # Run the unit test locally on the Azure VM by using VSTest (which will use the TAEF Adapter).
+  - task: VSTest@2
+    displayName: Run x86 UnitTests
+    condition: and(succeeded(), or(eq(variables['buildPlatform'], 'x86'), eq(variables['buildPlatform'], 'x64')))
+    inputs:
+      testAssemblyVer2: '**\*.UnitTests.dll'
+      searchFolder: '$(Build.SourcesDirectory)\BuildOutput\$(BuildConfiguration)\$(BuildPlatform)'
+      vsTestVersion: latest
+      runInParallel: false
+    continueOnError: true
+
+  - task: VSTest@2
+    displayName: Run x64 UnitTests
+    condition: and(succeeded(), or(eq(variables['BuildPlatform'], 'x86'), eq(variables['BuildPlatform'], 'x64')))
+    inputs:
+      testAssemblyVer2: '**\*.UnitTests.dll'
+      searchFolder: '$(Build.SourcesDirectory)\BuildOutput\$(BuildConfiguration)\$(BuildPlatform)'
+      vsTestVersion: latest
+      runInParallel: false
+      otherConsoleOptions: '/Platform:x64'
+    continueOnError: true
