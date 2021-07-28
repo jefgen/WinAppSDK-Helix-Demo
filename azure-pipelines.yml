@@ -1,6 +1,6 @@
 
 jobs:
-- job: Build
+- job: BuildAndTest
   strategy:
     matrix:
       x86:
@@ -11,6 +11,9 @@ jobs:
         BuildConfiguration: Release
   pool:
     vmImage: 'windows-latest'
+
+  variables:
+    BuildOutputPath: '$(Build.SourcesDirectory)\BuildOutput\$(BuildConfiguration)\$(BuildPlatform)'
 
   steps:
   - task: NuGetToolInstaller@1
@@ -25,7 +28,7 @@ jobs:
       restoreSolution: 'src\UnitTests\UnitTests.sln'
       feedsToUse: config
       nugetConfigPath: 'nuget.config'
-#      restoreDirectory: packages
+      restoreDirectory: packages
 
   - powershell: |
       Write-Host ""
@@ -46,24 +49,45 @@ jobs:
       maximumCpuCount: true
       createLogFile: true
 
+  - powershell: |
+      Write-Host ""
+      Write-Host "$(BUILD.BINARIESDIRECTORY)"
+      Tree /F /A $(BUILD.BINARIESDIRECTORY)
+      Write-Host ""
+      Write-Host "$(BUILD.SourcesDirectory)"
+      Tree /F /A $(BUILD.SourcesDirectory)
+    displayName: 'DIAG: dir'
+
   # Run the unit test locally on the Azure VM by using VSTest (which will use the TAEF Adapter).
   - task: VSTest@2
-    displayName: Run x86 UnitTests
-    condition: and(succeeded(), or(eq(variables['buildPlatform'], 'x86'), eq(variables['buildPlatform'], 'x64')))
+    displayName: Run UnitTests
     inputs:
+      testSelector: 'testAssemblies'
       testAssemblyVer2: '**\*.UnitTests.dll'
-      searchFolder: '$(Build.SourcesDirectory)\BuildOutput\$(BuildConfiguration)\$(BuildPlatform)'
-      vsTestVersion: latest
+      searchFolder: '$(BuildOutputPath)'
       runInParallel: false
-    continueOnError: true
+      platform: '$(BuildPlatform)'
+      configuration: '$(buildConfiguration)'
 
-  - task: VSTest@2
-    displayName: Run x64 UnitTests
-    condition: and(succeeded(), or(eq(variables['BuildPlatform'], 'x86'), eq(variables['BuildPlatform'], 'x64')))
+  # Copy and Publish the test binaries so we can run them in Helix later.
+  - task: CopyFiles@2
+    displayName: 'Copy test binaries'
     inputs:
-      testAssemblyVer2: '**\*.UnitTests.dll'
-      searchFolder: '$(Build.SourcesDirectory)\BuildOutput\$(BuildConfiguration)\$(BuildPlatform)'
-      vsTestVersion: latest
-      runInParallel: false
-      otherConsoleOptions: '/Platform:x64'
-    continueOnError: true
+      SourceFolder: '$(BuildOutputPath)'
+      Contents: |
+        TestApp.Managed.UnitTests\**
+      TargetFolder: '$(Agent.TempDirectory)\testbin\$(buildPlatform)'
+  
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish test binaries'
+    inputs:
+      PathtoPublish: '$(Agent.TempDirectory)\testbin\$(buildPlatform)'
+      artifactName: test_binaries_$(buildPlatform)
+
+# Run the tests in Helix
+- template: build\AzurePipelinesTemplates\WindowsAppSDK-RunHelixTests-Job.yml
+  parameters:
+    name: 'RunTestsInHelix'
+    dependsOn:
+      - BuildAndTest
+    condition: in(dependencies.BuildAndTest.result, 'Succeeded', 'SucceededWithIssues')
